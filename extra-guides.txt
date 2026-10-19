@@ -1,9 +1,25 @@
 # Extra guide links (XMLTV, .xml or .xml.gz). One link per line.
-# Lines starting with # are ignored.
+# Lines starting with # are ignored. Earlier lines win when two guides match the same channel.
 #
-# On the next run, channels that still have no guide are matched to these
-# guides by channel ID, then by exact channel name. Every match is listed in
-# the run summary under "Matches from extra-guides.txt".
-#
-# Example (remove the # to use it):
-# https://example.com/some-guide.xml.gz
+# On each run, channels that still have no real guide are matched to these
+# guides by channel ID, then by exact channel name (a channel marked for another
+# country is never used). Every match is listed in the run summary under
+# "Matches from extra-guides.txt". Put a wrong one's tvg-id in skip-matches.txt.
+
+# iptv-epg.org (checked Oct 19: ~50 of your blank channels)
+https://iptv-epg.org/files/epg-us.xml.gz
+https://iptv-epg.org/files/epg-ca.xml.gz
+https://iptv-epg.org/files/epg-in.xml.gz
+
+# open-epg.com (checked Oct 19: ~30 of your blank channels; files that matched nothing are left out)
+https://www.open-epg.com/files/unitedstates1.xml.gz
+https://www.open-epg.com/files/unitedstates2.xml.gz
+https://www.open-epg.com/files/unitedstates4.xml.gz
+https://www.open-epg.com/files/unitedstates5.xml.gz
+https://www.open-epg.com/files/unitedstates6.xml.gz
+https://www.open-epg.com/files/unitedstates7.xml.gz
+https://www.open-epg.com/files/canada2.xml.gz
+https://www.open-epg.com/files/canada3.xml.gz
+https://www.open-epg.com/files/india1.xml.gz
+https://www.open-epg.com/files/india2.xml.gz
+https://www.open-epg.com/files/india3.xml.gz

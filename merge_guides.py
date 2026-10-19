@@ -6,9 +6,9 @@ You never need to run it yourself.
 
 Two commands:
 
-  grab-list   Writes a channel list for iptv-org's guide grabber: every playlist
-              channel that has no guide in guide-map.csv but that iptv-org knows
-              how to fetch from a working TV-listings site.
+  grab-list   Writes channel lists for iptv-org's guide grabber (one file per
+              site): every playlist channel that has no guide in guide-map.csv
+              but that iptv-org knows how to fetch from a working TV-listings site.
 
   build       1. Channels in guide-map.csv: taken from their source guide.
               2. Channels the iptv-org grabber fetched (same IDs as the playlists).
@@ -66,6 +66,8 @@ SOURCES = {
     "in_airtel": "https://raw.githubusercontent.com/jasonramg/iptv-epg/main/epg/airtel.xml.gz",
 }
 
+# iptv-org grabber: sites never to use (their config crashed the grabber on GitHub)
+SITE_EXCLUDE = {"tv.mail.ru"}
 # iptv-org grabber: which site to use when a channel is listed on several working ones
 SITE_PREFERENCE = ["tvpassport.com", "tvguide.com", "i.mjh.nz", "plex.tv", "pluto.tv", "xumo.tv", "distro.tv",
                    "watch.whaletvplus.com", "dishtv.in", "airtelxstream.in", "tataplay.com", "watchyour.tv",
@@ -175,12 +177,35 @@ def playlist_channels(path):
 
 
 def norm_name(s):
+    s = re.sub(r"^\s*[A-Z]{2,3}\s*[-:|]\s+", "", s)            # "US - Name", "CA | Name"
+    s = re.sub(r"\.(us|ca|in|uk)\s*$", "", s, flags=re.I)      # "Name.us"
+    s = re.sub(r"\(\d+\)", " ", s)                               # "Name (840)" channel numbers
     s = unicodedata.normalize("NFD", s)
     s = "".join(ch for ch in s if unicodedata.category(ch) != "Mn").lower()
     s = re.sub(r"\((pluto tv|samsung tv plus|plex|tubi|roku|xumo|united states|usa|us|canada|india)\)", " ", s)
     s = s.replace("&", " and ").replace("+", " plus ").replace("'", "").replace("’", "")
-    words = [w for w in re.sub(r"[^a-z0-9]+", " ", s).split() if w not in {"hd", "sd", "fhd", "uhd", "4k"}]
+    words = [w for w in re.sub(r"[^a-z0-9]+", " ", s).split() if w not in {"hd", "sd", "fhd", "uhd"}]
     return "".join(words)
+
+
+COUNTRY_CODES = {"us", "ca", "in", "uk", "gb", "au", "mx", "es", "fr", "de", "pk", "bd", "lk", "ae", "br", "ar"}
+ALLOWED = {"us": {"us"}, "ca": {"ca", "us"}, "in": {"in"}}
+
+
+def guide_country(gid, names):
+    """Country a guide channel is marked for ("US - X", "X.us", id "X.us"), or None."""
+    for text in [gid] + names[:1]:
+        m = re.match(r"^\s*([A-Za-z]{2})\s*[-:|]\s+", text) or re.search(r"\.([a-z]{2})\s*$", text, re.I)
+        if m and m.group(1).lower() in COUNTRY_CODES:
+            return m.group(1).lower()
+    return None
+
+
+def playlist_country(path):
+    n = os.path.basename(path).lower()
+    if "-" in n:  # combined playlist
+        return None
+    return "in" if "india" in n else "ca" if "canada" in n else "us" if ("usa" in n or n.startswith("us")) else None
 
 
 def read_lines(path):
@@ -188,6 +213,12 @@ def read_lines(path):
         return []
     with open(path, encoding="utf-8") as f:
         return [l.split("#", 1)[0].strip() for l in f if l.split("#", 1)[0].strip()]
+
+
+def files_in(path, pattern):
+    if not path or not os.path.exists(path):
+        return []
+    return sorted(glob.glob(os.path.join(path, pattern))) if os.path.isdir(path) else [path]
 
 
 def load_map(path):
@@ -215,7 +246,7 @@ def cmd_grab_list(a):
     offers = collections.defaultdict(dict)  # tvg-id -> {site: channel element}
     for path in sorted(glob.glob(os.path.join(a.epg, "sites", "*", "*.channels.xml"))):
         site = path.split(os.sep)[-2]
-        if working and site not in working:
+        if (working and site not in working) or site in SITE_EXCLUDE:
             continue
         try:
             root = ET.parse(path).getroot()
@@ -226,17 +257,20 @@ def cmd_grab_list(a):
             if x in blank and site not in offers[x] and c.get("site_id"):
                 offers[x][site] = c
 
+    # one list per site, so one broken site can't stop the others
     rank = {s: i for i, s in enumerate(SITE_PREFERENCE)}
-    lines, per_site = ['<?xml version="1.0" encoding="UTF-8"?>', "<channels>"], collections.Counter()
+    by_site = collections.defaultdict(list)
     for tid in sorted(offers):
         site = min(offers[tid], key=lambda s: (rank.get(s, len(rank)), s))
-        lines.append("  " + ET.tostring(offers[tid][site], encoding="unicode").strip())
-        per_site[site] += 1
-    lines.append("</channels>")
-    with open(a.out, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines) + "\n")
+        by_site[site].append("  " + ET.tostring(offers[tid][site], encoding="unicode").strip())
+    os.makedirs(a.out_dir, exist_ok=True)
+    for old in glob.glob(os.path.join(a.out_dir, "*.channels.xml")):
+        os.remove(old)
+    for site, lines in by_site.items():
+        with open(os.path.join(a.out_dir, f"{site}.channels.xml"), "w", encoding="utf-8") as f:
+            f.write('<?xml version="1.0" encoding="UTF-8"?>\n<channels>\n' + "\n".join(lines) + "\n</channels>\n")
     log(f"{len(blank)} channels without a guide; iptv-org can fetch {len(offers)} of them")
-    log(", ".join(f"{s}: {n}" for s, n in per_site.most_common()))
+    log(", ".join(f"{s}: {len(v)}" for s, v in sorted(by_site.items(), key=lambda x: -len(x[1]))))
 
 
 # ---------------------------------------------------------------- build
@@ -248,10 +282,11 @@ def cmd_build(a):
 
     playlists = sorted(glob.glob(os.path.join(a.playlists, "*.m3u")))
     pl = {p: playlist_channels(p) for p in playlists}
-    info = {}
-    for chans in pl.values():
+    info, country = {}, collections.defaultdict(set)
+    for p, chans in pl.items():
         for cid, name, logo in chans:
             info.setdefault(cid, (name, logo))
+            country[cid].add(playlist_country(p))
     all_ids = set(info)
 
     chosen = {}   # playlist id -> (label, channel_xml, [(start, xml)])
@@ -281,30 +316,31 @@ def cmd_build(a):
     failed = [k for k in SOURCES if k in wanted and k not in got]
     pending = {t for t in all_ids if t not in chosen and any(k in failed for k in gmap.get(t, []))}
 
-    # 2. iptv-org grabber output (already uses the playlist IDs)
-    grab_sites = collections.Counter()
-    if a.grabbed and os.path.exists(a.grabbed):
-        site_of = {}
-        if a.grab_list and os.path.exists(a.grab_list):
-            for c in ET.parse(a.grab_list).getroot().iter("channel"):
-                site_of[c.get("xmltv_id")] = c.get("site")
+    # 2. iptv-org grabber output (already uses the playlist IDs); one file per site
+    grab_sites, site_of, asked = collections.Counter(), {}, collections.Counter()
+    for lst in files_in(a.grab_list, "*.channels.xml"):
         try:
-            data = unpack(open(a.grabbed, "rb").read())
-            todo = {t: [t] for t in all_ids if t not in chosen and t not in pending}
-            res = read_source(data, todo, now)
-            for tid, (ch, progs) in res.items():
-                if progs:
-                    chosen[tid] = (f"iptv-org: {site_of.get(tid, '?')}", ch, progs)
-                    grab_sites[site_of.get(tid, "?")] += 1
-            status["iptv-org grabber"] = f"ok ({sum(grab_sites.values())} channels with listings)"
-        except Exception as exc:  # noqa: BLE001
-            status["iptv-org grabber"] = f"FAILED: {exc}"
-    elif a.grabbed:
-        status["iptv-org grabber"] = "FAILED: no output file"
-    if a.grab_list and os.path.exists(a.grab_list):
-        asked = collections.Counter(c.get("site") for c in ET.parse(a.grab_list).getroot().iter("channel"))
-        for site, n in asked.items():
-            status[f"  grab: {site}"] = f"{grab_sites.get(site, 0)} of {n} channels"
+            for c in ET.parse(lst).getroot().iter("channel"):
+                site_of[c.get("xmltv_id")] = c.get("site")
+                asked[c.get("site")] += 1
+        except ET.ParseError:
+            pass
+    grabbed = files_in(a.grabbed, "*.xml")
+    for path in grabbed:
+        try:
+            data = unpack(open(path, "rb").read())
+        except Exception:  # noqa: BLE001 - empty or broken output from a failed site
+            continue
+        todo = {t: [t] for t in all_ids if t not in chosen and t not in pending}
+        for tid, (ch, progs) in read_source(data, todo, now).items():
+            if progs:
+                chosen[tid] = (f"iptv-org: {site_of.get(tid, '?')}", ch, progs)
+                grab_sites[site_of.get(tid, "?")] += 1
+    if a.grabbed:
+        status["iptv-org grabber"] = (f"ok ({sum(grab_sites.values())} channels with listings)" if grabbed
+                                      else "FAILED: no output")
+    for site, n in asked.most_common():
+        status[f"  grab: {site}"] = f"{grab_sites.get(site, 0)} of {n} channels"
 
     # 3. extra guides added by hand
     skip = set(read_lines(a.skip))
@@ -334,6 +370,9 @@ def cmd_build(a):
             cands = by_key.get(norm_name(info[tid][0]), set())
             if len(cands) == 1:
                 gid = next(iter(cands))
+                gc = guide_country(gid, names.get(gid, []))
+                if gc and None not in country[tid] and not any(gc in ALLOWED[c] for c in country[tid]):
+                    continue  # e.g. an India channel must not take a US guide
                 wanted_x[gid].append(tid)
                 how[tid] = (gid, "same name")
         res = read_source(data, wanted_x, now)
@@ -431,7 +470,7 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     g = sub.add_parser("grab-list", help="channel list for iptv-org's grabber")
     g.add_argument("--epg", required=True, help="folder with a copy of github.com/iptv-org/epg")
-    g.add_argument("--out", required=True)
+    g.add_argument("--out-dir", required=True, help="folder for one <site>.channels.xml per site")
     g.add_argument("--map", default="guide-map.csv")
     g.add_argument("--playlists", default=".")
     b = sub.add_parser("build", help="build guide.xml.gz")
@@ -440,8 +479,8 @@ def main():
     b.add_argument("--out", default="out")
     b.add_argument("--map", default="guide-map.csv")
     b.add_argument("--playlists", default=".")
-    b.add_argument("--grabbed", help="guide written by iptv-org's grabber")
-    b.add_argument("--grab-list", help="channel list given to the grabber (for the report)")
+    b.add_argument("--grabbed", help="folder (or file) with the guides iptv-org's grabber wrote")
+    b.add_argument("--grab-list", help="folder (or file) with the channel lists given to the grabber")
     b.add_argument("--extra", default="extra-guides.txt")
     b.add_argument("--skip", default="skip-matches.txt")
     b.add_argument("--placeholders", action="store_true")
