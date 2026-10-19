@@ -1,0 +1,49 @@
+name: Update TV guide
+
+# Runs when you upload files, every 6 hours, and when you press "Run workflow".
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tv-guide
+  cancel-in-progress: false
+
+jobs:
+  guide:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Get the repo
+        uses: actions/checkout@v4
+
+      - name: Build the merged guide
+        run: python3 merge_guides.py --repo "$GITHUB_REPOSITORY" --out "$RUNNER_TEMP/out"
+
+      - name: Publish the guide to the 'guide' branch
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd "$RUNNER_TEMP/out"
+          git init -q -b guide
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add guide.xml.gz report.md
+          git commit -q -m "Guide $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push -q -f "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" guide
+
+      - name: Save playlist header changes
+        run: |
+          if [ -n "$(git status --porcelain -- '*.m3u')" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -- '*.m3u'
+            git commit -q -m "Point playlists at the merged guide"
+            git push -q || (git pull -q --rebase && git push -q)
+          fi
