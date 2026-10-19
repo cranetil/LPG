@@ -18,13 +18,39 @@ concurrency:
 jobs:
   guide:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Get the repo
         uses: actions/checkout@v4
 
+      - name: Set up Node (for iptv-org's grabber)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Get iptv-org's guide grabber
+        continue-on-error: true
+        run: |
+          git clone --depth 1 https://github.com/iptv-org/epg "$RUNNER_TEMP/epg"
+          cd "$RUNNER_TEMP/epg"
+          npm install --no-audit --no-fund
+
+      - name: List channels the grabber can fetch
+        continue-on-error: true
+        run: python3 merge_guides.py grab-list --epg "$RUNNER_TEMP/epg" --out "$RUNNER_TEMP/epg/custom.channels.xml"
+
+      - name: Grab their schedules
+        continue-on-error: true
+        timeout-minutes: 20
+        working-directory: ${{ runner.temp }}/epg
+        run: npm run grab --- --channels=custom.channels.xml --output="$RUNNER_TEMP/grabbed.xml" --days=2 --maxConnections=10 --timeout=30000
+
       - name: Build the merged guide
-        run: python3 merge_guides.py --repo "$GITHUB_REPOSITORY" --out "$RUNNER_TEMP/out"
+        # Remove "--placeholders" below to leave channels without a schedule blank.
+        run: >-
+          python3 merge_guides.py build --repo "$GITHUB_REPOSITORY" --out "$RUNNER_TEMP/out"
+          --grabbed "$RUNNER_TEMP/grabbed.xml" --grab-list "$RUNNER_TEMP/epg/custom.channels.xml"
+          --placeholders
 
       - name: Publish the guide to the 'guide' branch
         env:
