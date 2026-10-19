@@ -37,19 +37,27 @@ jobs:
 
       - name: List channels the grabber can fetch
         continue-on-error: true
-        run: python3 merge_guides.py grab-list --epg "$RUNNER_TEMP/epg" --out "$RUNNER_TEMP/epg/custom.channels.xml"
+        run: python3 merge_guides.py grab-list --epg "$RUNNER_TEMP/epg" --out-dir "$RUNNER_TEMP/epg/grablists"
 
-      - name: Grab their schedules
+      - name: Grab their schedules (one site at a time)
         continue-on-error: true
-        timeout-minutes: 20
+        timeout-minutes: 30
         working-directory: ${{ runner.temp }}/epg
-        run: npm run grab --- --channels=custom.channels.xml --output="$RUNNER_TEMP/grabbed.xml" --days=2 --maxConnections=10 --timeout=30000
+        run: |
+          mkdir -p "$RUNNER_TEMP/grabbed"
+          for list in grablists/*.channels.xml; do
+            site=$(basename "$list" .channels.xml)
+            echo "::group::$site"
+            timeout 300 npm run grab --- --channels="$list" --output="$RUNNER_TEMP/grabbed/$site.xml" \
+              --days=2 --maxConnections=5 --timeout=30000 || echo "$site failed - skipping it"
+            echo "::endgroup::"
+          done
 
       - name: Build the merged guide
         # Remove "--placeholders" below to leave channels without a schedule blank.
         run: >-
           python3 merge_guides.py build --repo "$GITHUB_REPOSITORY" --out "$RUNNER_TEMP/out"
-          --grabbed "$RUNNER_TEMP/grabbed.xml" --grab-list "$RUNNER_TEMP/epg/custom.channels.xml"
+          --grabbed "$RUNNER_TEMP/grabbed" --grab-list "$RUNNER_TEMP/epg/grablists"
           --placeholders
 
       - name: Publish the guide to the 'guide' branch
