@@ -1,0 +1,5 @@
+# tvg-ids that should never be matched from extra-guides.txt. One per line.
+# Copy the tvg-id from the "Matches from extra-guides.txt" table in the run summary.
+#
+# Example:
+# Heartland.us@Eastern
