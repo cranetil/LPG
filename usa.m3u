@@ -1,4 +1,4 @@
-#EXTM3U url-tvg="https://raw.githubusercontent.com/cranetil/LPG/guide/guide.xml.gz" x-tvg-url="https://raw.githubusercontent.com/cranetil/LPG/guide/guide.xml.gz"
+#EXTM3U url-tvg="https://raw.githubusercontent.com/cranetil/LPG/guide/guide.xml.gz,https://epgshare01.online/epgshare01/epg_ripper_US2.xml.gz" x-tvg-url="https://raw.githubusercontent.com/cranetil/LPG/guide/guide.xml.gz,https://epgshare01.online/epgshare01/epg_ripper_US2.xml.gz"
 #EXTINF:-1 tvg-id="30AInvestmentPitch.us@SD" tvg-logo="https://i.imgur.com/CKCtZo7.png" group-title="🇺🇸 News",30A Investment Pitch (720p)
 https://30a-tv.com/feeds/xodglobal/30atv.m3u8
 #EXTINF:-1 tvg-id="30ALionelNation.us@SD" tvg-logo="https://m.media-amazon.com/images/I/71dgsQwVcNL.png" group-title="🇺🇸 News",30A Lionel Nation

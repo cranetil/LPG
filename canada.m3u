@@ -1,4 +1,4 @@
-#EXTM3U url-tvg="https://raw.githubusercontent.com/cranetil/LPG/guide/guide.xml.gz" x-tvg-url="https://raw.githubusercontent.com/cranetil/LPG/guide/guide.xml.gz"
+#EXTM3U url-tvg="https://raw.githubusercontent.com/cranetil/LPG/guide/guide.xml.gz,https://epgshare01.online/epgshare01/epg_ripper_CA2.xml.gz" x-tvg-url="https://raw.githubusercontent.com/cranetil/LPG/guide/guide.xml.gz,https://epgshare01.online/epgshare01/epg_ripper_CA2.xml.gz"
 #EXTINF:-1 tvg-id="BNN.Bloomberg.ca2" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/BNN_Bloomberg.svg/960px-BNN_Bloomberg.svg.png" group-title="🇨🇦 News",BNN Bloomberg
 https://pe-ak-lp01a-9c9media.akamaized.net/live/News1BNNDigi/p/dash/00000001/1bba52dc66e4c68e/manifest.mpd
 #EXTINF:-1 tvg-id="CBC.News.Network.ca2" tvg-logo="https://i.imgur.com/SjTdhvJ.png" group-title="🇨🇦 News",CBC News Network (1080p)

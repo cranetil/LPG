@@ -1,4 +1,4 @@
-#EXTM3U url-tvg="https://raw.githubusercontent.com/cranetil/LPG/guide/guide.xml.gz" x-tvg-url="https://raw.githubusercontent.com/cranetil/LPG/guide/guide.xml.gz"
+#EXTM3U url-tvg="https://raw.githubusercontent.com/cranetil/LPG/guide/guide.xml.gz,https://epgshare01.online/epgshare01/epg_ripper_IN1.xml.gz,https://epgshare01.online/epgshare01/epg_ripper_IN4.xml.gz" x-tvg-url="https://raw.githubusercontent.com/cranetil/LPG/guide/guide.xml.gz,https://epgshare01.online/epgshare01/epg_ripper_IN1.xml.gz,https://epgshare01.online/epgshare01/epg_ripper_IN4.xml.gz"
 #EXTINF:-1 tvg-id="22Scope.News.in" tvg-logo="https://jiotvimages.cdn.jio.com/dare_images/images/22Scope_News.png" group-title="🇮🇳 Hindi News",22Scope News (1080p)
 https://thelegitpro.in/HDlive/22scope/index.fmp4.m3u8
 #EXTINF:-1 tvg-id="Aaj.Ki.Khabar.in" tvg-logo="https://m.media-amazon.com/images/I/71q8sOMPwHL.png" group-title="🇮🇳 Hindi News",Aaj Ki Khabar (1080p)
